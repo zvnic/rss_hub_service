@@ -1,0 +1,20 @@
+# Prometheus — конфигурация сбора метрик
+# Цель: RSSHub (если приложение отдаёт /metrics)
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # RSSHub (включить при METRICS_ENABLED=true и поддержке в приложении)
+  - job_name: 'rsshub'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['rsshub:1200']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Сам Prometheus
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

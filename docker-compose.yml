@@ -1,0 +1,96 @@
+# =============================================================================
+# RSSHub — базовая конфигурация (RSSHub + Redis)
+# Запуск: docker compose up -d
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # RSSHub — агрегатор RSS-лент
+  # ---------------------------------------------------------------------------
+  rsshub:
+    image: diygod/rsshub:latest
+    container_name: rsshub
+    restart: unless-stopped
+    ports:
+      - "${RSSHUB_PORT:-1200}:1200"
+    environment:
+      # Порт внутри контейнера (RSSHub читает PORT)
+      PORT: "1200"
+      NODE_ENV: ${RSSHUB_NODE_ENV:-production}
+      LOGGER_LEVEL: ${RSSHUB_LOGGER_LEVEL:-info}
+      # Кэш Redis (обязательно для продакшена)
+      CACHE_TYPE: redis
+      CACHE_EXPIRE: ${CACHE_EXPIRE:-300}
+      CACHE_CONTENT_EXPIRE: ${CACHE_CONTENT_EXPIRE:-3600}
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/${REDIS_DB:-0}"
+      # CORS для доступа из внешних приложений
+      ALLOW_ORIGIN: "${ALLOW_ORIGIN:-*}"
+      # Puppeteer: рендеринг JS-сайтов (оставьте пустым, если не используете browserless)
+      PUPPETEER_WS_ENDPOINT: "${PUPPETEER_WS_ENDPOINT:-}"
+      # Прокси (опционально): формат protocol://host:port
+      PROXY_URI: "${PROXY_URI:-}"
+      PROXY_AUTH: "${PROXY_AUTH:-}"
+      # Метрики Prometheus (включить в расширенной версии)
+      ENABLE_METRICS: "${METRICS_ENABLED:-false}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1200/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - rsshub-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Redis — кэш для RSSHub (обязателен)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: rsshub-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - "./data/redis:/data"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - rsshub-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+networks:
+  rsshub-network:
+    name: rsshub-network
+    driver: bridge

@@ -1,0 +1,27 @@
+# Локальные секреты и конфигурация
+.env
+.env.local
+.env.*.local
+
+# Данные контейнеров (Redis, сертификаты, Prometheus)
+data/
+
+# Логи
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Временные файлы
+tmp/
+temp/
+*.tmp
