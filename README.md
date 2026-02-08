@@ -189,6 +189,26 @@ cp -r ./data/redis ./backup/redis-$(date +%Y%m%d)
 
 ---
 
+## Устранение неполадок
+
+**Ошибка при загрузке образа:** `failed to register layer: archive/tar: invalid tar header`
+
+Возможные причины: кэш Docker, нехватка места на диске или сбой при загрузке слоя. Попробуйте по порядку:
+
+1. Перезапустите Docker Desktop и повторите `docker compose up -d`.
+2. Очистите кэш и повторно загрузите образы:
+   ```bash
+   docker compose down
+   docker rmi diygod/rsshub:latest 2>/dev/null
+   docker builder prune -af
+   docker compose pull
+   docker compose up -d
+   ```
+3. Убедитесь, что на диске достаточно свободного места (образ ~150 MB).
+4. Обновите Docker Desktop до последней версии.
+
+---
+
 ## Безопасность
 
 - Не используйте дефолтные пароли: обязательно задайте **REDIS_PASSWORD** в `.env`.

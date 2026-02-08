@@ -8,7 +8,11 @@ services:
   # RSSHub — агрегатор RSS-лент
   # ---------------------------------------------------------------------------
   rsshub:
-    image: diygod/rsshub:latest
+    # Сборка из исходников (обход ошибки "invalid tar header" при pull образа)
+    build:
+      context: https://github.com/DIYgod/RSSHub.git
+      dockerfile: Dockerfile
+    image: rsshub:local
     container_name: rsshub
     restart: unless-stopped
     ports:
