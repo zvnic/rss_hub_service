@@ -1,0 +1,48 @@
+# =============================================================================
+# Browserless Chrome — отдельный compose для Puppeteer (динамические сайты)
+# Запуск вместе с основным: docker compose -f docker-compose.yml -f docker-compose.browserless.yml up -d
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Browserless Chrome — headless браузер для маршрутов с JS
+  # ---------------------------------------------------------------------------
+  browserless:
+    image: browserless/chrome:latest
+    container_name: rsshub-browserless
+    restart: unless-stopped
+    # Ограничение core dumps (как в официальном RSSHub compose)
+    ulimits:
+      core:
+        hard: 0
+        soft: 0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/pressure"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - rsshub-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
+
+  # ---------------------------------------------------------------------------
+  # Переопределение RSSHub: подключаем Puppeteer к Browserless
+  # ---------------------------------------------------------------------------
+  rsshub:
+    environment:
+      PUPPETEER_WS_ENDPOINT: "ws://browserless:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      browserless:
+        condition: service_healthy

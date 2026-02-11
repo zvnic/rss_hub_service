@@ -7,6 +7,7 @@
 | Вариант | Сервисы | Когда использовать |
 |--------|---------|--------------------|
 | **Базовая** | RSSHub + Redis | Локально или за внешним reverse proxy (Nginx/Caddy на хосте) |
+| **С Browserless** | RSSHub + Redis + Browserless Chrome | Маршруты для динамических (JS) сайтов; отдельный `docker-compose.browserless.yml` |
 | **Расширенная** | RSSHub + Redis + Nginx + Prometheus | Полный стек на одном хосте: прокси, метрики, один `docker compose` |
 
 ### Запуск базовой версии (RSSHub + Redis)
@@ -18,6 +19,23 @@ docker compose up -d
 ```
 
 RSSHub будет доступен на порту **1200** (или на значении `RSSHUB_PORT` из `.env`).
+
+### Запуск с Browserless (Puppeteer для динамических сайтов)
+
+Для маршрутов, требующих рендеринга JavaScript, поднимите Browserless Chrome рядом с RSSHub:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.browserless.yml up -d
+```
+
+RSSHub автоматически получит `PUPPETEER_WS_ENDPOINT=ws://browserless:3000`. Остановка: используйте те же два файла в `down` и `logs`.
+
+**Проверка работы Puppeteer (динамических лайтов):**
+
+- Маршруты, использующие **стандартный** Puppeteer RSSHub (`getPuppeteerPage` / `puppeteer()`), подключаются к Browserless по `PUPPETEER_WS_ENDPOINT`. Убедиться, что подключение есть: запросить любой такой маршрут (например `/xiaohongshu/board/5db6f79200000000020032df`) и посмотреть логи Browserless — должны появиться строки вроде `Setting up page`, `Recording successful stat`.
+- Часть маршрутов (например **picnob**) использует другую схему: библиотеку `puppeteer-real-browser` и переменную **PUPPETEER_REAL_BROWSER_SERVICE** (или **CHROMIUM_EXECUTABLE_PATH**). Они **не** используют `PUPPETEER_WS_ENDPOINT`, поэтому с одним только Browserless по нашей конфигурации работать не будут.
+- Ответ 503 по конкретному маршруту может быть из‑за недоступности целевого сайта из контейнера (блокировка, гео, сеть), а не из‑за отключённого Puppeteer.
+- Повторяемый тест: `./scripts/test-dynamic-route.sh` — запрос к `/xiaohongshu/board/...` и вывод логов Browserless (по умолчанию маршрут можно передать аргументом).
 
 ### Запуск расширенной версии (с Nginx и Prometheus)
 
